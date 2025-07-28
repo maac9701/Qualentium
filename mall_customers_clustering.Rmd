@@ -1,0 +1,130 @@
+---
+title: "Mall Customers Clustering Analysis"
+author: "Tu Nombre"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(cluster)
+library(factoextra)
+library(dplyr)
+```
+
+# 1. Carga del Dataset
+
+```{r}
+data <- read.csv("Mall_Customers.csv")
+head(data)
+dim(data)
+str(data)
+summary(data)
+```
+
+# 2. Preparación de Datos
+
+```{r}
+colnames(data) <- c("CustomerID", "Genre", "Age", "AnnualIncome", "SpendingScore")
+data$Genre <- ifelse(data$Genre == "Male", 1, 0)
+data_clust <- data[, c("Genre", "Age", "AnnualIncome", "SpendingScore")]
+data_scaled <- scale(data_clust)
+```
+
+# 3. Exploración de Variables
+
+```{r}
+hist(data$Age, main = "Distribución de Edad", xlab = "Edad")
+hist(data$AnnualIncome, main = "Ingresos Anuales", xlab = "Ingreso")
+hist(data$SpendingScore, main = "Puntaje de Gasto", xlab = "Spending Score")
+```
+
+# 4. K-Means Clustering
+
+## 4.1 Método del Codo
+
+```{r}
+fviz_nbclust(data_scaled, kmeans, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2) +
+  labs(title = "Método del Codo")
+```
+
+## 4.2 Entrenamiento con K = 5
+
+```{r}
+set.seed(123)
+kmeans_model <- kmeans(data_scaled, centers = 5, nstart = 25)
+data$KMeansCluster <- kmeans_model$cluster
+```
+
+## 4.3 Silueta
+
+```{r}
+sil_kmeans <- silhouette(kmeans_model$cluster, dist(data_scaled))
+mean(sil_kmeans[, 3])
+fviz_silhouette(sil_kmeans)
+```
+
+# 5. Clustering Jerárquico
+
+```{r}
+dist_matrix <- dist(data_scaled)
+hc_model <- hclust(dist_matrix, method = "ward.D")
+plot(hc_model, labels = FALSE, main = "Dendrograma")
+rect.hclust(hc_model, k = 5, border = "red")
+data$HCCluster <- cutree(hc_model, k = 5)
+```
+
+## 5.1 Silueta
+
+```{r}
+sil_hc <- silhouette(data$HCCluster, dist_matrix)
+mean(sil_hc[, 3])
+fviz_silhouette(sil_hc)
+```
+
+# 6. Análisis Descriptivo de Clusters
+
+## 6.1 K-Means
+
+```{r}
+aggregate(data[, c("Age", "AnnualIncome", "SpendingScore")],
+          by = list(Cluster = data$KMeansCluster),
+          FUN = mean)
+```
+
+## 6.2 Jerárquico
+
+```{r}
+aggregate(data[, c("Age", "AnnualIncome", "SpendingScore")],
+          by = list(Cluster = data$HCCluster),
+          FUN = mean)
+```
+
+# 7. Visualización de Resultados
+
+## 7.1 Clusters K-Means
+
+```{r}
+ggplot(data, aes(x = AnnualIncome, y = SpendingScore, color = factor(KMeansCluster))) +
+  geom_point(size = 3) +
+  labs(title = "Clusters K-Means", color = "Cluster") +
+  theme_minimal()
+```
+
+## 7.2 Clusters Jerárquicos
+
+```{r}
+ggplot(data, aes(x = AnnualIncome, y = SpendingScore, color = factor(HCCluster))) +
+  geom_point(size = 3) +
+  labs(title = "Clusters Jerárquico", color = "Cluster") +
+  theme_minimal()
+```
+
+# 8. Conclusiones
+
+- Se utilizaron dos técnicas de clustering: **K-Means** y **clustering jerárquico**.
+- Ambos modelos se evaluaron con la **métrica de silueta**, eligiendo el número óptimo de clusters mediante el **método del codo** y el dendrograma.
+- Se identificaron perfiles de clientes basados en ingresos, edad y gasto, útiles para estrategias de marketing.
+
+---
