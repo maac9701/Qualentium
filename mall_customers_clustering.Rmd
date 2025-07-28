@@ -1,6 +1,6 @@
 ---
 title: "Mall Customers Clustering Analysis"
-author: "Tu Nombre"
+author: "Mercedes"
 output: html_document
 ---
 
